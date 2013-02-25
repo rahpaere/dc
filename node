@@ -1,0 +1,10 @@
+#! /bin/sh
+
+if test $# -ne 1
+then
+	echo Usage: $0 N
+	echo Run a shell on node N.
+	exit 1
+fi
+
+exec ip netns exec node$1 bash

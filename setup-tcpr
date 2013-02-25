@@ -1,0 +1,7 @@
+#! /bin/sh
+
+modprobe tcpr
+
+iptables -t mangle -A FORWARD -d 10.0.0.1 -p tcp -j TCPR --addr 10.0.2.1
+iptables -t mangle -A FORWARD -d 10.0.0.1 -p udp -j TCPR --addr 10.0.2.1
+iptables -t mangle -A FORWARD -s 10.0.0.1 -p tcp -j TCPR

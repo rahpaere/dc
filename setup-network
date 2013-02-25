@@ -1,0 +1,35 @@
+#! /bin/sh
+
+if test $# -ne 1
+then
+	echo Usage: $0 N
+	echo Create N virtual nodes.
+	exit 1
+fi
+
+node () {
+	ip netns add node$1
+
+	ip link add node$1 type veth peer name eth0 netns node$1
+	ip link set node$1 up master tcpr
+
+	ip address add 10.0.$1.2/24 dev tcpr
+
+	ip netns exec node$1 ip address add 10.0.$1.1/24 dev eth0
+	ip netns exec node$1 ip link set eth0 up
+	ip netns exec node$1 ip link set lo up
+	ip netns exec node$1 ip route add default via 10.0.$1.2
+}
+
+echo 1 >/proc/sys/net/ipv4/ip_forward
+echo 0 >/proc/sys/net/ipv4/conf/all/send_redirects
+echo 0 >/proc/sys/net/ipv4/conf/all/accept_redirects
+
+ip link add tcpr type bridge
+ip link set tcpr up
+
+max=`expr $1 - 1`
+for i in `seq 0 $max`
+do
+	node $i
+done

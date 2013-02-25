@@ -1,0 +1,9 @@
+#! /bin/sh
+
+for node in `ip netns | grep '^node[0-9]*$'`
+do
+	ip link delete $node
+	ip netns delete $node
+done
+
+ip link delete tcpr
