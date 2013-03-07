@@ -18,4 +18,4 @@ typedef struct {
 
 c37_packet *get_c37_packet(char *data);
 void write_c37_packet(FILE *output, c37_packet *pkt);
-void write_c37_packet_csv(FILE *output, c37_packet *pkt);
+void write_c37_packet_readable(FILE *output, c37_packet *pkt);

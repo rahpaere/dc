@@ -95,7 +95,7 @@ void write_c37_packet(FILE *output, c37_packet *pkt) {
 	fwrite(buf, pkt->framesize, 1, output);
 }
 
-void write_c37_packet_csv(FILE *output, c37_packet *pkt) {
+void write_c37_packet_readable(FILE *output, c37_packet *pkt) {
 	time_t t = pkt->soc;
     int usec = pkt->fracsec & 0xFFFFFF;
 	char *now = ctime(&t);

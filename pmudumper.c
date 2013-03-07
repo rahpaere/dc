@@ -56,7 +56,7 @@ int do_copy(int fd){
 
 		/* Write the packet to standard output.
 		 */
-		write_c37_packet_csv(stdout, pkt);
+		write_c37_packet_readable(stdout, pkt);
 		free(pkt);
 	}
 
