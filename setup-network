@@ -21,9 +21,9 @@ node () {
 	ip netns exec node$1 ip route add default via 10.0.$1.2
 }
 
-echo 1 >/proc/sys/net/ipv4/ip_forward
-echo 0 >/proc/sys/net/ipv4/conf/all/send_redirects
-echo 0 >/proc/sys/net/ipv4/conf/all/accept_redirects
+echo 1 | tee /proc/sys/net/ipv4/ip_forward >/dev/null
+echo 0 | tee /proc/sys/net/ipv4/conf/*/send_redirects >/dev/null
+echo 0 | tee /proc/sys/net/ipv4/conf/*/accept_redirects >/dev/null
 
 ip link add tcpr type bridge
 ip link set tcpr up
