@@ -5,6 +5,8 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -233,6 +235,7 @@ static int connect_to_peer(struct sockaddr_in *peeraddr, uint16_t bindport)
 		return -1;
 	}
 
+	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
 	return s;
 }
 

@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 #include "c37.h"
 
@@ -106,6 +108,8 @@ int do_copy(int fd){
 
 void do_recv(int s){
 	int fd;
+	int yes = 1;
+
 	for (;;) {
 		if (listen(s, 1) < 0) {
 			perror("listen");
@@ -116,6 +120,8 @@ void do_recv(int s){
 			perror("accept");
 			exit(1);
 		}
+
+		setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
 
 		printf("Got connection...\n");
 		while (do_copy(fd))
