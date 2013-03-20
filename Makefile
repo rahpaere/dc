@@ -1,3 +1,4 @@
+#CFLAGS = -Wall -Wextra -g -pthread -DTCPR
 CFLAGS = -Wall -Wextra -g -pthread
 LDFLAGS = -pthread
 

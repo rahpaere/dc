@@ -11,9 +11,10 @@ backward-compatible substitute for the previous dc.py:
 			-n log-count: maximum #log files [default = unlimited]
 
 The data collector connects to both src-ip:src-port and dst-ip:dst-port.
-It sends the stream-id to the source, and then copies all data it receives from
-the source to the destination.  It protects its connection to the source with
-TCPR.
+It sends the stream-id to the source, and then copies all data it receives
+from the source to the destination.  It can protect its connection to
+the source with TCPR; to use TCPR, edit the Makefile to include -DTCPR
+in CFLAGS.
 
 TCPR, available from <http://github.com/rahpaere/tcpr/>, is middleware
 that enables application-driven TCP migration and recovery.  The

@@ -1,7 +1,5 @@
 #include "log.h"
 
-#include <tcpr/types.h>
-
 #include <ctype.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -14,8 +12,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-static const uint16_t masterport = 6666;
 
 struct arguments {
 	char *name;
@@ -97,6 +93,44 @@ static int resolve_address(struct sockaddr_in *addr, const char *host,
 	freeaddrinfo(ai);
 	return 0;
 }
+
+static int connect_to_peer(struct sockaddr_in *peeraddr, uint16_t bindport)
+{
+	int s;
+	int yes = 1;
+	struct sockaddr_in self;
+
+	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (s < 0)
+		return -1;
+
+	if (bindport) {
+		self.sin_family = AF_INET;
+		self.sin_addr.s_addr = htonl(INADDR_ANY);
+		self.sin_port = htons(bindport);
+
+		setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+
+		if (bind(s, (struct sockaddr *)&self, sizeof(self)) < 0) {
+			close(s);
+			return -1;
+		}
+	}
+
+	if (connect(s, (struct sockaddr *)peeraddr, sizeof(*peeraddr)) < 0) {
+		close(s);
+		return -1;
+	}
+
+	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
+	return s;
+}
+
+#ifdef TCPR
+
+#include <tcpr/types.h>
+
+static const uint16_t masterport = 6666;
 
 static void *do_handle_slaves(void *arg)
 {
@@ -207,38 +241,6 @@ static int claim_tcpr_state(struct tcpr_ip4 *state, int tcprsock,
 	return 0;
 }
 
-static int connect_to_peer(struct sockaddr_in *peeraddr, uint16_t bindport)
-{
-	int s;
-	int yes = 1;
-	struct sockaddr_in self;
-
-	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (s < 0)
-		return -1;
-
-	if (bindport) {
-		self.sin_family = AF_INET;
-		self.sin_addr.s_addr = htonl(INADDR_ANY);
-		self.sin_port = htons(bindport);
-
-		setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
-
-		if (bind(s, (struct sockaddr *)&self, sizeof(self)) < 0) {
-			close(s);
-			return -1;
-		}
-	}
-
-	if (connect(s, (struct sockaddr *)peeraddr, sizeof(*peeraddr)) < 0) {
-		close(s);
-		return -1;
-	}
-
-	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
-	return s;
-}
-
 static int wait_for_master(struct tcpr_ip4 *state)
 {
 	int s;
@@ -262,8 +264,14 @@ static int wait_for_master(struct tcpr_ip4 *state)
 	return 1;
 }
 
+#endif /* TCPR */
+
+#ifdef TCPR
 static int copy_data(struct tcpr_ip4 *state, struct log *log, int pullsock,
 		     int pushsock, int tcprsock)
+#else
+static int copy_data(struct log *log, int pullsock, int pushsock)
+#endif
 {
 	char buffer[65536];
 	ssize_t nr;
@@ -287,17 +295,21 @@ static int copy_data(struct tcpr_ip4 *state, struct log *log, int pullsock,
 			if (ns < 0)
 				return -1;
 
+#ifdef TCPR
 			state->tcpr.hard.ack =
 			    htonl(ntohl(state->tcpr.hard.ack) + ns);
 			if (send(tcprsock, state, sizeof(*state), 0) < 0)
 				return -1;
+#endif
 		}
 	}
 
+#ifdef TCPR
 	state->tcpr.hard.done_reading = 1;
 	state->tcpr.hard.done_writing = 1;
 	if (send(tcprsock, state, sizeof(*state), 0) < 0)
 		return -1;
+#endif
 
 	return 0;
 }
@@ -307,14 +319,16 @@ int main(int argc, char **argv)
 	static const uint16_t selfport = 6667;
 	struct sockaddr_in pulladdr;
 	struct sockaddr_in pushaddr;
-	int tcprsock;
 	int pullsock;
 	int pushsock;
 	int err;
 	int recovering = 0;
-	struct tcpr_ip4 state;
 	struct arguments args;
-	struct log *log;
+	struct log *log = NULL;
+#ifdef TCPR
+	int tcprsock;
+	struct tcpr_ip4 state;
+#endif
 
 	memset(&args, 0, sizeof(args));
 	parse_arguments(&args, argc, argv);
@@ -333,6 +347,7 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+#ifdef TCPR
 	printf("Connecting to TCPR.\n");
 	tcprsock = connect_to_tcpr(&pulladdr);
 	if (tcprsock < 0) {
@@ -358,6 +373,7 @@ int main(int argc, char **argv)
 	}
 
 	handle_slaves();
+#endif /* TCPR */
 
 	printf("Connecting to data source.\n");
 	pullsock = connect_to_peer(&pulladdr, selfport);
@@ -378,10 +394,12 @@ int main(int argc, char **argv)
 		log = log_start(args.logprefix, args.logbytes, args.logcount);
 	}
 
+#ifdef TCPR
 	if (get_tcpr_state(&state, tcprsock, &pulladdr, selfport) < 0) {
 		perror("Getting TCPR state");
 		exit(EXIT_FAILURE);
 	}
+#endif
 
 	if (!recovering) {
 		printf("Sending ID to data source.\n");
@@ -392,13 +410,19 @@ int main(int argc, char **argv)
 	}
 
 	printf("Copying data from source to sink.\n");
+#ifdef TCPR
 	if (copy_data(&state, log, pullsock, pushsock, tcprsock) < 0) {
+#else
+	if (copy_data(log, pullsock, pushsock) < 0) {
+#endif
 		perror("Copying data");
 		exit(EXIT_FAILURE);
 	}
 
 	printf("Done.\n");
+#ifdef TCPR
 	close(tcprsock);
+#endif
 	close(pullsock);
 	close(pushsock);
 	return EXIT_SUCCESS;
