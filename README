@@ -59,3 +59,31 @@ writes a packet in C37.118 format to the given FILE, while
 	void write_c37_packet_readable(FILE *output, c37_packet *pkt)
 
 prints the human-readable version defined above.
+
+To conduct a demo like the one at
+<https://www.youtube.com/watch?v=BPIvZBSJ5vk>, first set up a virtual
+network with four nodes and configure TCPR:
+
+	$ ./setup-network 4
+	$ ./setup-tcpr
+
+Then, open four new terminals.  In one, start the data source:
+
+	$ ./node 0 ./pmuplayer
+
+In another, start the data sink:
+
+	$ ./node 3 ./pmudumper
+
+In the middle two, start shells on the two replicas:
+
+	$ ./node 1
+
+	$ ./node 2
+
+Then, in either replica shell, run the data collector:
+
+	$ ./dc 10.0.0.1 3350 1 10.0.3.1 3360
+
+At any time, in any order, you can start another dc (the same way),
+and kill a running one.  When you're done, kill the pmuplayer.
